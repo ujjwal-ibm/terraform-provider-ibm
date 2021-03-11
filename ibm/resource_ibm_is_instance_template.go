@@ -6,6 +6,8 @@ package ibm
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/customdiff"
@@ -41,6 +43,8 @@ const (
 	isInstanceTemplateDedicatedHostGroup           = "dedicated_host_group"
 	isInstanceTemplateResourceType                 = "resource_type"
 	isInstanceTemplateVolumeDeleteOnInstanceDelete = "delete_volume_on_instance_delete"
+	isInstanceTemplateCRN                          = "crn"
+	isInstanceTemplateTags                         = "tags"
 )
 
 func resourceIBMISInstanceTemplate() *schema.Resource {
@@ -249,6 +253,21 @@ func resourceIBMISInstanceTemplate() *schema.Resource {
 				Optional:    true,
 				Computed:    true,
 				Description: "Instance template resource group",
+			},
+
+			isInstanceTemplateCRN: {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The crn of the resource",
+			},
+
+			isInstanceTemplateTags: {
+				Type:        schema.TypeSet,
+				Optional:    true,
+				Computed:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Set:         resourceIBMVPCHash,
+				Description: "List of tags",
 			},
 		},
 	}
@@ -519,6 +538,16 @@ func instanceTemplateCreate(d *schema.ResourceData, meta interface{}, profile, n
 	}
 	instance := instanceIntf.(*vpcv1.InstanceTemplate)
 	d.SetId(*instance.ID)
+
+	v := os.Getenv("IC_ENV_TAGS")
+	if _, ok := d.GetOk(isInstanceTemplateTags); ok || v != "" {
+		oldList, newList := d.GetChange(isInstanceTemplateTags)
+		err = UpdateTagsUsingCRN(oldList, newList, meta, *instance.CRN)
+		if err != nil {
+			log.Printf(
+				"Error on create of resource instance template (%s) tags: %s", d.Id(), err)
+		}
+	}
 	return nil
 }
 
@@ -655,6 +684,13 @@ func instanceTemplateGet(d *schema.ResourceData, meta interface{}, ID string) er
 	if instance.ResourceGroup != nil {
 		d.Set(isInstanceTemplateResourceGroup, instance.ResourceGroup.ID)
 	}
+	tags, err := GetTagsUsingCRN(meta, *instance.CRN)
+	if err != nil {
+		log.Printf(
+			"Error on get of resource instance template (%s) tags: %s", d.Id(), err)
+	}
+	d.Set(isInstanceTemplateTags, tags)
+	d.Set(isInstanceTemplateCRN, *instance.CRN)
 	return nil
 }
 
@@ -683,6 +719,14 @@ func instanceTemplateUpdate(d *schema.ResourceData, meta interface{}) error {
 		_, _, err = instanceC.UpdateInstanceTemplate(updnetoptions)
 		if err != nil {
 			return err
+		}
+	}
+	if d.HasChange(isInstanceTemplateTags) {
+		oldList, newList := d.GetChange(isInstanceTemplateTags)
+		err = UpdateTagsUsingCRN(oldList, newList, meta, d.Get(isInstanceTemplateCRN).(string))
+		if err != nil {
+			log.Printf(
+				"Error on update of resource instance template (%s) tags: %s", d.Id(), err)
 		}
 	}
 	return nil

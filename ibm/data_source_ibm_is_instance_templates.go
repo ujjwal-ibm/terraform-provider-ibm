@@ -4,6 +4,7 @@
 package ibm
 
 import (
+	"log"
 	"time"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
@@ -55,6 +56,7 @@ const (
 	isInstanceTemplatesVersion              = "version"
 	isInstanceTemplatesGeneration           = "generation"
 	isInstanceTemplatesBootVolumeAttachment = "boot_volume_attachment"
+	isInstanceTemplatesTags                 = "tags"
 
 	isInstanceTemplateVPC                     = "vpc"
 	isInstanceTemplateZone                    = "zone"
@@ -234,6 +236,13 @@ func dataSourceIBMISInstanceTemplates() *schema.Resource {
 								},
 							},
 						},
+						isInstanceTemplatesTags: {
+							Type:        schema.TypeSet,
+							Computed:    true,
+							Elem:        &schema.Schema{Type: schema.TypeString},
+							Set:         resourceIBMVPCHash,
+							Description: "List of tags",
+						},
 						isInstanceTemplateResourceGroup: {
 							Type:     schema.TypeString,
 							Computed: true,
@@ -264,7 +273,12 @@ func dataSourceIBMISInstanceTemplatesRead(d *schema.ResourceData, meta interface
 		template[isInstanceTemplatesCrn] = instance.CRN
 		template[isInstanceTemplateName] = instance.Name
 		template[isInstanceTemplateUserData] = instance.UserData
-
+		tags, err := GetTagsUsingCRN(meta, *instance.CRN)
+		if err != nil {
+			log.Printf(
+				"An error occured during reading of intsnace template (%s) tags : %s", *instance.ID, err)
+		}
+		template[isInstanceTemplatesTags] = tags
 		if instance.Keys != nil {
 			keys := []string{}
 			for _, intfc := range instance.Keys {

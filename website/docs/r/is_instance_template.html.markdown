@@ -88,12 +88,14 @@ The following arguments are supported:
   * `volume` - (Required, string) Storage volume ID created under VPC.
   * `delete_volume_on_instance_delete` - (Required, bool) Configured to delete the storage volume to be deleted upon instance deletion.
 * `user_data` - (Optional, string) User data provided for the instance.
+* `tags` - (Optional, list(string)) Tags associated with the instance template.
 
 ## Attribute Reference
 
 The following attributes are exported:
 
 * `id` - Id of the instance template
+* `crn` - CRN of the instance template
 
 ## Import
 

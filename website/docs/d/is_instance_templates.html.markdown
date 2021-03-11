@@ -23,13 +23,14 @@ data "ibm_is_instance_templates" "instancetemplates" {
 
 The following attributes are exported:
 * `templates` - List of templates
-  * `id` - Id of the instance instance template
+  * `id` - Id of the instance template
   * `name` - The name of the instance template.
   * `image` - The ID of the image to used to create the template.
   * `profile` - The number of instances to be created under the instance group.
   * `vpc` - The ID of VPC in which the instance templates needs to be created.
   * `zone` - Name of the zone
   * `keys` - List of ssh-key ids used to allow login user to the instances.
+  * `tags` - Tags associated with the instance template.
   * `resource_group` - Resource group ID.
   * `primary_network_interfaces` - A nested block describing the primary network interface for the template
     * `subnet` - The VPC subnet to assign to the interface. 
