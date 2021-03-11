@@ -5,6 +5,7 @@ package ibm
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -48,6 +49,13 @@ func dataSourceIBMISSubnets() *schema.Resource {
 						"ipv4_cidr_block": {
 							Type:     schema.TypeString,
 							Computed: true,
+						},
+						"tags": {
+							Type:        schema.TypeSet,
+							Computed:    true,
+							Elem:        &schema.Schema{Type: schema.TypeString},
+							Set:         resourceIBMVPCHash,
+							Description: "List of tags",
 						},
 						"ipv6_cidr_block": {
 							Type:     schema.TypeString,
@@ -133,7 +141,11 @@ func classicSubnetList(d *schema.ResourceData, meta interface{}) error {
 	for _, subnet := range allrecs {
 		var aac string = strconv.FormatInt(*subnet.AvailableIpv4AddressCount, 10)
 		var tac string = strconv.FormatInt(*subnet.TotalIpv4AddressCount, 10)
-
+		tags, err := GetTagsUsingCRN(meta, *subnet.CRN)
+		if err != nil {
+			log.Printf(
+				"An error occured during reading of subnet (%s) tags : %s", *subnet.ID, err)
+		}
 		l := map[string]interface{}{
 			"name":                         *subnet.Name,
 			"id":                           *subnet.ID,
@@ -145,6 +157,7 @@ func classicSubnetList(d *schema.ResourceData, meta interface{}) error {
 			"total_ipv4_address_count":     tac,
 			"vpc":                          *subnet.VPC.ID,
 			"zone":                         *subnet.Zone.Name,
+			"tags":                         tags,
 		}
 		if subnet.PublicGateway != nil {
 			l["public_gateway"] = *subnet.PublicGateway.ID
@@ -183,6 +196,13 @@ func subnetList(d *schema.ResourceData, meta interface{}) error {
 
 		var aac string = strconv.FormatInt(*subnet.AvailableIpv4AddressCount, 10)
 		var tac string = strconv.FormatInt(*subnet.TotalIpv4AddressCount, 10)
+		tags, err := GetTagsUsingCRN(meta, *subnet.CRN)
+		if err != nil {
+			log.Printf(
+				"An error occured during reading of subnet (%s) tags : %s", *subnet.ID, err)
+		}
+		d.Set(isSubnetTags, tags)
+		d.Set(isSubnetCRN, *subnet.CRN)
 		l := map[string]interface{}{
 			"name":                         *subnet.Name,
 			"id":                           *subnet.ID,
@@ -194,6 +214,7 @@ func subnetList(d *schema.ResourceData, meta interface{}) error {
 			"total_ipv4_address_count":     tac,
 			"vpc":                          *subnet.VPC.ID,
 			"zone":                         *subnet.Zone.Name,
+			"tags":                         tags,
 		}
 		if subnet.PublicGateway != nil {
 			l["public_gateway"] = *subnet.PublicGateway.ID
