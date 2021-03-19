@@ -62,6 +62,11 @@ const (
 	isInstanceMemory                  = "memory"
 	isInstanceStatus                  = "status"
 
+	// snapshot changes
+	isInstanceSnapshots         = "snapshots"
+	isInstanceByVolSnapshot     = "vol_snapshot"
+	isInstanceInsVolAttSnapshot = "instance_volume_snapshot"
+
 	isEnableCleanDelete        = "wait_before_delete"
 	isInstanceProvisioning     = "provisioning"
 	isInstanceProvisioningDone = "done"
@@ -1624,7 +1629,7 @@ func instanceUpdate(d *schema.ResourceData, meta interface{}) error {
 			for i := range add {
 				createvolattoptions := &vpcv1.CreateInstanceVolumeAttachmentOptions{
 					InstanceID: &id,
-					Volume: &vpcv1.VolumeIdentity{
+					Volume: &vpcv1.VolumeAttachmentPrototypeVolume{
 						ID: &add[i],
 					},
 					DeleteVolumeOnInstanceDelete: &volautoDelete,
