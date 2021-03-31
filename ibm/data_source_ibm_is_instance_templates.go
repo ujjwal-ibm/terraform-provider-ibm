@@ -4,6 +4,8 @@
 package ibm
 
 import (
+	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
@@ -142,9 +144,22 @@ func dataSourceIBMISInstanceTemplates() *schema.Resource {
 										Type:     schema.TypeString,
 										Computed: true,
 									},
+									// isInstanceTemplateVolAttSnapshot: {
+									// 	Type:     schema.TypeString,
+									// 	Computed: true,
+									// },
 								},
 							},
 						},
+						// isInstanceTemplateBootVolType: {
+						// 	Type:     schema.TypeString,
+						// 	Computed: true,
+						// },
+						// isInstanceTemplateBootVolTemplate: {
+						// 	Type:        schema.TypeString,
+						// 	Computed:    true,
+						// 	Description: "Id of the instance template",
+						// },
 						isInstanceTemplatePrimaryNetworkInterface: {
 							Type:     schema.TypeList,
 							Computed: true,
@@ -231,6 +246,10 @@ func dataSourceIBMISInstanceTemplates() *schema.Resource {
 										Type:     schema.TypeString,
 										Computed: true,
 									},
+									// isInstanceTemplateBootVolumeSnapshot: {
+									// 	Type:     schema.TypeString,
+									// 	Computed: true,
+									// },
 								},
 							},
 						},
@@ -246,6 +265,7 @@ func dataSourceIBMISInstanceTemplates() *schema.Resource {
 }
 
 func dataSourceIBMISInstanceTemplatesRead(d *schema.ResourceData, meta interface{}) error {
+	fmt.Println("TMPS:: -22 we're here type ")
 	instanceC, err := vpcClient(meta)
 	if err != nil {
 		return err
@@ -255,10 +275,15 @@ func dataSourceIBMISInstanceTemplatesRead(d *schema.ResourceData, meta interface
 	if err != nil {
 		return err
 	}
+	fmt.Printf("TMPS:: -220 we're here type %s", "here")
 	templates := make([]map[string]interface{}, 0)
 	for _, instTempl := range availableTemplates.Templates {
 		template := map[string]interface{}{}
 		instance := instTempl.(*vpcv1.InstanceTemplate)
+		fmt.Printf("TMPS:: -2 we're here type %s", reflect.TypeOf(instance).String())
+		// fmt.Printf("TMPS:: -1 we're here type %s", reflect.TypeOf(instTempl.(*vpcv1.InstanceTemplateInstanceByImage)).String())
+		fmt.Printf("TMPS:: 0 we're here type %s", reflect.TypeOf(instTempl).String())
+		// fmt.Printf("TMPS:: 0 we're here type %s", reflect.TypeOf(instTempl.(*vpcv1.InstanceTemplateInstanceByVolume)).String())
 		template["id"] = instance.ID
 		template[isInstanceTemplatesHref] = instance.Href
 		template[isInstanceTemplatesCrn] = instance.CRN
@@ -360,12 +385,18 @@ func dataSourceIBMISInstanceTemplatesRead(d *schema.ResourceData, meta interface
 				volumeIntf := volume.Volume
 				volumeInst := volumeIntf.(*vpcv1.VolumeAttachmentPrototypeVolume)
 				volumeAttach[isInstanceTemplateVolAttVolume] = volumeInst.Name
+				// snapshotIntf := volumeInst.SourceSnapshot
+				// snapshot := snapshotIntf.(*vpcv1.SnapshotIdentity)
+				// volumeAttach[isInstanceTemplateVolAttSnapshot] = snapshot.ID
 				interfacesList = append(interfacesList, volumeAttach)
 			}
 			template[isInstanceTemplateVolumeAttachments] = interfacesList
 		}
 
 		if instance.BootVolumeAttachment != nil {
+			fmt.Printf("TMPS:: 1 we're here")
+			fmt.Printf("TMPS:: 2 we're here type %s", reflect.TypeOf(instance.BootVolumeAttachment).String())
+
 			bootVolList := make([]map[string]interface{}, 0)
 			bootVol := map[string]interface{}{}
 
