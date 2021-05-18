@@ -10,27 +10,27 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
-func TestAccIBMISVolumeProfilesDataSource_basic(t *testing.T) {
-	resName := "data.ibm_is_volume_profiles.test1"
+func TestAccIBMISBMSProfileDataSource_basic(t *testing.T) {
+	resName := "data.ibm_is_bare_metal_server_profile.test1"
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			resource.TestStep{
-				Config: testAccCheckIBMISVolumeProfilesDataSourceConfig(),
+				Config: testAccCheckIBMISBMSProfileDataSourceConfig(),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttrSet(resName, "profiles.0.name"),
-					resource.TestCheckResourceAttrSet(resName, "profiles.0.family"),
+					resource.TestCheckResourceAttr(resName, "name", ""),
 				),
 			},
 		},
 	})
 }
 
-func testAccCheckIBMISVolumeProfilesDataSourceConfig() string {
+func testAccCheckIBMISBMSProfileDataSourceConfig() string {
 	// status filter defaults to empty
 	return fmt.Sprintf(`
-      data "ibm_is_volume_profiles" "test1" {
+      data "ibm_is_bare_metal_server_profile" "test1" {
+		  name=""
       }`)
 }

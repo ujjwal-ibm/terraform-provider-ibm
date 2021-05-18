@@ -262,6 +262,7 @@ func bmsList(d *schema.ResourceData, meta interface{}) error {
 		l := map[string]interface{}{
 			isBMSName: *bms.Name,
 		}
+
 		serversInfo = append(serversInfo, l)
 	}
 	d.SetId(dataSourceIBMISBMSsID(d))
