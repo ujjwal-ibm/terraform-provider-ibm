@@ -51,6 +51,7 @@ const (
 	isBMSNicSecurityGroups       = "security_groups"
 	isBMSNicSubnet               = "subnet"
 	isBMSActionDeleting          = "deleting"
+	isBMSActionDeleted           = "deleted"
 	isBMSActionStatusStopping    = "stopping"
 
 	isBMSActionStatusStopped = "stopped"
@@ -581,38 +582,29 @@ func bmsUpdate(d *schema.ResourceData, meta interface{}, id string) error {
 	if err != nil {
 		return err
 	}
-	if d.HasChange(isVolumeTags) {
-		options := &vpcv1.GetVolumeOptions{
+
+	if d.HasChange(isBMSName) {
+		nameStr := ""
+		if name, ok := d.GetOk(isBMSName); ok {
+			nameStr = name.(string)
+		}
+		options := &vpcv1.UpdateBareMetalServerOptions{
 			ID: &id,
 		}
-		vol, response, err := sess.GetVolume(options)
-		if err != nil {
-			return fmt.Errorf("Error getting Volume : %s\n%s", err, response)
+		bmsPatchModel := &vpcv1.BareMetalServerPatch{
+			Name: &nameStr,
 		}
-		oldList, newList := d.GetChange(isVolumeTags)
-		err = UpdateTagsUsingCRN(oldList, newList, meta, *vol.CRN)
+		bmsPatch, err := bmsPatchModel.AsPatch()
 		if err != nil {
-			log.Printf(
-				"Error on update of resource vpc volume (%s) tags: %s", id, err)
+			return fmt.Errorf("Error calling asPatch for BareMetalServerPatch: %s", err)
+		}
+		options.BareMetalServerPatch = bmsPatch
+		_, response, err := sess.UpdateBareMetalServer(options)
+		if err != nil {
+			return fmt.Errorf("Error updating Bare Metal Server: %s\n%s", err, response)
 		}
 	}
-	/* if hasChanged {
-		options := &vpcv1.UpdateVolumeOptions{
-			ID: &id,
-		}
-		volumePatchModel := &vpcv1.VolumePatch{
-			Name: &name,
-		}
-		volumePatch, err := volumePatchModel.AsPatch()
-		if err != nil {
-			return fmt.Errorf("Error calling asPatch for VolumePatch: %s", err)
-		}
-		options.VolumePatch = volumePatch
-		_, response, err := sess.UpdateVolume(options)
-		if err != nil {
-			return fmt.Errorf("Error updating vpc volume: %s\n%s", err, response)
-		}
-	} */
+
 	return nil
 }
 
@@ -641,7 +633,7 @@ func bmsDelete(d *schema.ResourceData, meta interface{}, id string) error {
 		if response != nil && response.StatusCode == 404 {
 			return nil
 		}
-		return fmt.Errorf("Error Getting Volume (%s): %s\n%s", id, err, response)
+		return fmt.Errorf("Error Getting Bare Metal Server (%s): %s\n%s", id, err, response)
 	}
 	if *bms.Status == "running" {
 		options := &vpcv1.CreateBareMetalServerStopOptions{
@@ -650,14 +642,14 @@ func bmsDelete(d *schema.ResourceData, meta interface{}, id string) error {
 		response, err = sess.CreateBareMetalServerStop(options)
 	}
 
-	options := &vpcv1.DeleteVolumeOptions{
+	options := &vpcv1.DeleteBareMetalServerOptions{
 		ID: &id,
 	}
-	response, err = sess.DeleteVolume(options)
+	response, err = sess.DeleteBareMetalServer(options)
 	if err != nil {
-		return fmt.Errorf("Error Deleting Volume : %s\n%s", err, response)
+		return fmt.Errorf("Error Deleting Bare Metal Server : %s\n%s", err, response)
 	}
-	_, err = isWaitForVolumeDeleted(sess, id, d.Timeout(schema.TimeoutDelete))
+	_, err = isWaitForBMSDeleted(sess, id, d.Timeout(schema.TimeoutDelete))
 	if err != nil {
 		return err
 	}
@@ -671,7 +663,7 @@ func isWaitForBMSDeleted(bmsC *vpcv1.VpcV1, id string, timeout time.Duration) (i
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{"retry", isBMSActionDeleting},
 		Target:     []string{"done", ""},
-		Refresh:    isVolumeDeleteRefreshFunc(bmsC, id),
+		Refresh:    isBMSDeleteRefreshFunc(bmsC, id),
 		Timeout:    timeout,
 		Delay:      10 * time.Second,
 		MinTimeout: 10 * time.Second,
@@ -680,36 +672,29 @@ func isWaitForBMSDeleted(bmsC *vpcv1.VpcV1, id string, timeout time.Duration) (i
 	return stateConf.WaitForState()
 }
 
-func isBMSDeleteRefreshFunc(vol *vpcv1.VpcV1, id string) resource.StateRefreshFunc {
+func isBMSDeleteRefreshFunc(bmsC *vpcv1.VpcV1, id string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		volgetoptions := &vpcv1.GetVolumeOptions{
+		bmsgetoptions := &vpcv1.GetBareMetalServerOptions{
 			ID: &id,
 		}
-		vol, response, err := vol.GetVolume(volgetoptions)
+		bms, response, err := bmsC.GetBareMetalServer(bmsgetoptions)
 		if err != nil {
 			if response != nil && response.StatusCode == 404 {
-				return vol, isVolumeDeleted, nil
+				return bms, isBMSActionDeleted, nil
 			}
-			return vol, "", fmt.Errorf("Error Getting Volume: %s\n%s", err, response)
+			return bms, "", fmt.Errorf("Error Getting Bare Metal Server: %s\n%s", err, response)
 		}
-		return vol, isVolumeDeleting, err
+		return bms, isBMSActionDeleting, err
 	}
 }
 
 func resourceIBMISBMSExists(d *schema.ResourceData, meta interface{}) (bool, error) {
-	userDetails, err := meta.(ClientSession).BluemixUserDetails()
-	if err != nil {
-		return false, err
-	}
+
 	id := d.Id()
 
-	if userDetails.generation == 1 {
-		exists, err := classicVolExists(d, meta, id)
-		return exists, err
-	} else {
-		exists, err := volExists(d, meta, id)
-		return exists, err
-	}
+	exists, err := bmsExists(d, meta, id)
+	return exists, err
+
 }
 
 func bmsExists(d *schema.ResourceData, meta interface{}, id string) (bool, error) {
@@ -717,26 +702,26 @@ func bmsExists(d *schema.ResourceData, meta interface{}, id string) (bool, error
 	if err != nil {
 		return false, err
 	}
-	options := &vpcv1.GetVolumeOptions{
+	options := &vpcv1.GetBareMetalServerOptions{
 		ID: &id,
 	}
-	_, response, err := sess.GetVolume(options)
+	_, response, err := sess.GetBareMetalServer(options)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			return false, nil
 		}
-		return false, fmt.Errorf("Error getting Volume: %s\n%s", err, response)
+		return false, fmt.Errorf("Error getting Bare Metal Server: %s\n%s", err, response)
 	}
 	return true, nil
 }
 
 func isWaitForBMSAvailable(client *vpcv1.VpcV1, id string, timeout time.Duration) (interface{}, error) {
-	log.Printf("Waiting for Volume (%s) to be available.", id)
+	log.Printf("Waiting for Bare Metal Server (%s) to be available.", id)
 
 	stateConf := &resource.StateChangeConf{
-		Pending:    []string{"retry", isVolumeProvisioning},
-		Target:     []string{isVolumeProvisioningDone, ""},
-		Refresh:    isVolumeRefreshFunc(client, id),
+		Pending:    []string{"restarting", isBMSStatusPending},
+		Target:     []string{isBMSStatusRunning, ""},
+		Refresh:    isBMSRefreshFunc(client, id),
 		Timeout:    timeout,
 		Delay:      10 * time.Second,
 		MinTimeout: 10 * time.Second,
@@ -747,19 +732,19 @@ func isWaitForBMSAvailable(client *vpcv1.VpcV1, id string, timeout time.Duration
 
 func isBMSRefreshFunc(client *vpcv1.VpcV1, id string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		volgetoptions := &vpcv1.GetVolumeOptions{
+		bmsgetoptions := &vpcv1.GetBareMetalServerOptions{
 			ID: &id,
 		}
-		vol, response, err := client.GetVolume(volgetoptions)
+		bms, response, err := client.GetBareMetalServer(bmsgetoptions)
 		if err != nil {
-			return nil, "", fmt.Errorf("Error Getting volume: %s\n%s", err, response)
+			return nil, "", fmt.Errorf("Error Getting Bare Metal Server: %s\n%s", err, response)
 		}
 
-		if *vol.Status == "available" {
-			return vol, isVolumeProvisioningDone, nil
+		if *bms.Status == "running" {
+			return bms, "running", nil
 		}
 
-		return vol, isVolumeProvisioning, nil
+		return bms, "pending", nil
 	}
 }
 
