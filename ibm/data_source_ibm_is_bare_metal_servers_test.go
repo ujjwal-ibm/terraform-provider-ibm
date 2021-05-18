@@ -20,8 +20,8 @@ func TestAccIBMISBMSsDataSource_basic(t *testing.T) {
 			{
 				Config: testAccCheckIBMISBMSsDataSourceConfig(),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttrSet(resName, "profiles.0.name"),
-					resource.TestCheckResourceAttrSet(resName, "profiles.0.family"),
+					resource.TestCheckResourceAttrSet(resName, "servers.0.name"),
+					resource.TestCheckResourceAttrSet(resName, "servers.0.family"),
 				),
 			},
 		},

@@ -31,6 +31,6 @@ func testAccCheckIBMISBMSDataSourceConfig() string {
 	// status filter defaults to empty
 	return fmt.Sprintf(`
       data "ibm_is_bare_metal_server" "test1" {
-		  identifier=
+		  identifier=""
       }`)
 }
